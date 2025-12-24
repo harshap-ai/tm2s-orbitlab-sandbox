@@ -42,10 +42,26 @@ class ImageResEnhancer:
 
     def imgsave(self, outputpath, genimg, _input_name):
         clean_name = os.path.splitext(_input_name)[0]
-        save_path = os.path.join(outputpath, f"{clean_name}.png")
+        save_path = os.path.join(outputpath, f"{clean_name}.tif")
         
-        gen_imageFinal = Image.fromarray(genimg.astype(np.uint8))
-        gen_imageFinal.save(save_path)
+        if genimg.ndim == 4:
+            genimg = np.squeeze(genimg, axis=0)
+
+        output_data = np.moveaxis(genimg, -1, 0)
+        output_data = np.clip(output_data, 0, 255).astype(np.uint8)
+        
+        count, height, width = output_data.shape
+
+        with rasterio.open(
+            save_path, 'w',
+            driver='GTiff',
+            height=height,
+            width=width,
+            count=count,
+            dtype='uint8', 
+            nodata=0       
+        ) as dst:
+            dst.write(output_data)
 
 if __name__ == "__main__": 
     modelpath = "/models/gen_e_50.h5"  
@@ -77,3 +93,4 @@ if __name__ == "__main__":
                     image_stack = np.stack(_to_unpatch, axis=0)
                     unpatched_image = imgEnH.unpatchify_result(image_stack)
                     imgEnH.imgsave(outputpath, unpatched_image, _input_name)
+
